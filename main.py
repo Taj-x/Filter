@@ -58,8 +58,8 @@ class AhocorasickNer:
         for end_index, (insert_order, original_value) in self.actree.iter(sentence):
             strat_index = end_index - len(original_value) + 1
             #print((strat_index, end_index + 1), (insert_order, original_value))
-            res.append([strat_index, end_index])
-
+            #res.append([strat_index, end_index])
+            res.append(original_value)
         return res
 
 class MyRegex(object):
@@ -96,7 +96,8 @@ class BanWordDict(object):
         self.new_word = [] #文本中的敏感词
         self.new_to_original = {} #文本到黑名单的映射
 
-    def make_word(self, regex):
+
+    def make_dict(self, regex):
         with open(self.file_name, "r", encoding="utf-8") as f:
             for line in f.readlines():
                 for key, val in regex.items():
@@ -130,17 +131,42 @@ class BanWordDict(object):
             #for it in self.new_word:
             #    print(it)
 
+class Moyu_Banned(object):
+    def __init__(self, blacklist_file, matched_file, ans_file):
+        self.blacklist_file = blacklist_file
+        self.matched_file = matched_file
+        self.ans_file = ans_file
+
+    def run(self):
+        #对黑名单词语构建正则表达式
+        myre = MyRegex(self.blacklist_file)
+        myre.make_regex()
+        #用正则去匹配文本中的敏感词
+        mydict = BanWordDict(self.matched_file)
+        mydict.make_dict(myre.regex_dict)
+        #用文本中的敏感词构建ac机
+        ac = AhocorasickNer(mydict.new_word)
+        ac.add_keywords() 
+        total = 0
+        res = []
+        with open(self.matched_file, "r", encoding="utf-8") as f:
+            for index, line in enumerate(f.readlines()):
+                tmp_res = ac.get_match_result(line.strip())
+                for it in tmp_res:
+                    total += 1
+                    res.append("Line{}: <{}> {}\n".format(index + 1, mydict.new_to_original[it], it))
+        with open(self.ans_file, "w", encoding="utf-8") as f:
+            f.write("Total: {}\n".format(total))
+        with open(self.ans_file, "a", encoding="utf-8") as f:
+            f.writelines(res)
 
 
 
 if __name__ == "__main__":
-    content = "法轮功和鱼一起摸鱼吧，我要死了。。。粗来，，22112，干你娘速度爬"
-    content.encode('utf-8')
-    banword = ["法轮功", "摸鱼", "鱼", "死了"]
-    myre = MyRegex("words.txt")
-    myre.make_regex()
-    bd = BanWordDict("org.txt")
-    bd.make_word(myre.regex_dict)
+    t = time.time()
+    fuckse = Moyu_Banned("words.txt", "org.txt", "mo.txt")
+    fuckse.run()
+    print(int(time.time()) - int(t))
 
 
 
