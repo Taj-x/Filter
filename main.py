@@ -65,31 +65,71 @@ class AhocorasickNer:
 class MyRegex(object):
     def __init__(self, file_name):
         self.file_name = file_name
-        self.regex_dict = {}
+        self.regex_dict = {} #敏感词正则表达式
 
     def make_regex(self):
         with open(self.file_name, "r", encoding="utf-8") as f:
-            ban_word = f.readline()
-            print(ban_word)
-            is_first = True
-            pattern = ""
-            for char in ban_word:
-                if char == '\n' or char.isdigit():
-                    break
-                elif char.encode("utf-8").isalpha():
-                    if is_first:
-                        is_first = False
+            for ban_word in f.readlines():
+                is_first = True
+                pattern = ""
+                for char in ban_word:
+                    if char == '\n' or char.isdigit():
+                        break
+                    elif char.encode("utf-8").isalpha():
+                        if is_first:
+                            is_first = False
+                        else:
+                            pattern += "[^a-zA-Z]*"
+                        pattern += "(?:" + char + ")"
                     else:
-                        pattern += "[^a-zA-Z]*"
-                    pattern += "(?:" + char + ")"
-                else:
-                    if is_first:
-                        is_first = False
-                    else:
-                        pattern += "[^\\u4e00-\\u9fa5]"
-                    pattern += "(?:{}|{}|{})".format(char, word_to_pinyin(char), word_to_pinyin_first(char))
-            print(pattern)
-            self.regex_dict[ban_word.strip()] = pattern    
+                        if is_first:
+                            is_first = False
+                        else:
+                            pattern += "[^\\u4e00-\\u9fa5]*"
+                        pattern += "(?:{}|{}|{})".format(char, word_to_pinyin(char), word_to_pinyin_first(char))
+                #print(pattern)
+                self.regex_dict[ban_word.strip()] = pattern    
+
+class BanWordDict(object):
+    def __init__(self, file_name):
+        self.file_name = file_name #待匹配文本
+        self.new_word = [] #文本中的敏感词
+        self.new_to_original = {} #文本到黑名单的映射
+
+    def make_word(self, regex):
+        with open(self.file_name, "r", encoding="utf-8") as f:
+            for line in f.readlines():
+                for key, val in regex.items():
+                    #初次匹配
+                    it = re.findall(val, line, re.I)
+                    for res in it:
+                        self.new_to_original[res] = key
+                        self.new_word.append(res)
+                    if key.encode("utf-8").isalpha():
+                        continue
+                    #谐音匹配
+                    mp = {}
+                    line = list(line)
+                    for i in range(len(line)):
+                        _cur = lazy_pinyin(line[i])[0]
+                        _key = lazy_pinyin(key)
+                        if _cur in _key:
+                            to = key[_key.index(_cur)]
+                            mp[i] = line[i]
+                            line[i] = to
+                    line = ''.join(line)
+                    it = re.findall(val, line, re.I)
+                    for res in it:
+                        pos = line.index(res)
+                        for i in range(len(res)):
+                            if pos + i in mp.keys():
+                                res = res.replace(res[i], mp[pos + i])
+                        self.new_to_original[res] = key
+                        self.new_word.append(res)
+            self.new_word = list(set(self.new_word))
+            #for it in self.new_word:
+            #    print(it)
+
 
 
 
@@ -99,7 +139,8 @@ if __name__ == "__main__":
     banword = ["法轮功", "摸鱼", "鱼", "死了"]
     myre = MyRegex("words.txt")
     myre.make_regex()
-    
+    bd = BanWordDict("org.txt")
+    bd.make_word(myre.regex_dict)
 
 
 
