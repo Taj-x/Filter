@@ -4,6 +4,7 @@ from pypinyin import Style
 import itertools
 import copy
 import time
+import re
 import ahocorasick
 
 '''
@@ -61,21 +62,43 @@ class AhocorasickNer:
 
         return res
 
+class MyRegex(object):
+    def __init__(self, file_name):
+        self.file_name = file_name
+        self.regex_dict = {}
+
+    def make_regex(self):
+        with open(self.file_name, "r", encoding="utf-8") as f:
+            ban_word = f.readline()
+            print(ban_word)
+            is_first = True
+            pattern = ""
+            for char in ban_word:
+                if char == '\n' or char.isdigit():
+                    break
+                elif char.encode("utf-8").isalpha():
+                    if is_first:
+                        is_first = False
+                    else:
+                        pattern += "[^a-zA-Z]*"
+                    pattern += "(?:" + char + ")"
+                else:
+                    if is_first:
+                        is_first = False
+                    else:
+                        pattern += "[^\\u4e00-\\u9fa5]"
+                    pattern += "(?:{}|{}|{})".format(char, word_to_pinyin(char), word_to_pinyin_first(char))
+            print(pattern)
+            self.regex_dict[ban_word.strip()] = pattern    
 
 
 
 if __name__ == "__main__":
     content = "法轮功和鱼一起摸鱼吧，我要死了。。。粗来，，22112，干你娘速度爬"
     content.encode('utf-8')
-    banword = ["法轮功", "摸鱼", "鱼", "死了", "22"]
-    for _ in banword:
-        _.encode('utf-8')
-    ac = AhocorasickNer(banword)
-    ac.add_keywords()
-    res = ac.get_match_result(content)
-    for _ in res:
-        print(_)
-        print(content[_[0]:_[1] + 1])
+    banword = ["法轮功", "摸鱼", "鱼", "死了"]
+    myre = MyRegex("words.txt")
+    myre.make_regex()
     
 
 
