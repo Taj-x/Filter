@@ -205,15 +205,20 @@ class Moyu_Banned(object):
 
 
 if __name__ == "__main__":
-    words_file = "test_data/words.txt"
-    matched_file = "test_data/org.txt"
-    ans_file = "test_data/pp.txt"
-    t = time.time()
+    st = time.time()
+    if len(sys.argv) == 1:
+        words_file = "test_data/words.txt"
+        matched_file = "test_data/org.txt"
+        ans_file = "test_data/pp.txt"
+    else:
+        words_file = sys.argv[1]
+        matched_file = sys.argv[2]
+        ans_file = sys.argv[3]
 
     fuckse = Moyu_Banned(words_file, matched_file, ans_file)
     fuckse.run()
-
-    print(int(time.time()) - int(t))
+    ed = time.time()
+    print(ed - st)
 
 
 
