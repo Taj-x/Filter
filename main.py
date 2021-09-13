@@ -2,9 +2,10 @@
 from pypinyin import lazy_pinyin
 from pypinyin import Style
 import itertools
-import copy
 import time
+import sys
 import re
+from pychai import Erbi
 import ahocorasick
 
 '''
@@ -62,12 +63,47 @@ class AhocorasickNer:
             res.append(original_value)
         return res
 
+#拆字
+class MyChai(object):
+    def __init__(self):
+        self.xiaoqing = Erbi('xiaoqing')
+    def run(self):
+        self.xiaoqing.run()
+        for nameChar in self.xiaoqing.charList:
+            if nameChar in self.xiaoqing.component:
+                # 如果字是基本部件，则获取字根拆分
+                root, strokeList = self.xiaoqing.component[nameChar]
+                scheme = [root] + strokeList[-1:] * 4
+            else:
+                # 否则先按嵌套拆分拆开对于拆出的每个基础字，索引出其用户字根拆分列，最后组合起来
+                tree = self.xiaoqing.tree[nameChar]
+                first = tree.first
+                second = tree.second
+                if second.divisible():
+                    r1, sl1 = self.xiaoqing.component[first.veryFirst()]
+                    r2, sl2 = self.xiaoqing.component[second.first.veryFirst()]
+                    r3, sl3 = self.xiaoqing.component[second.second.veryFirst()]
+                    scheme = [r1] + [sl2[0], sl2[-1], sl3[0], sl3[-1]]
+                elif first.divisible():
+                    r1, sl1 = self.xiaoqing.component[first.first.veryFirst()]
+                    r2, sl2 = self.xiaoqing.component[first.second.veryFirst()]
+                    r3, sl3 = self.xiaoqing.component[second.veryFirst()]
+                    scheme = [r1] + [sl2[0], sl2[-1], sl3[0], sl3[-1]]
+                else:
+                    r1, sl1 = self.xiaoqing.component[first.name]
+                    r2, sl2 = self.xiaoqing.component[second.name]
+                    scheme = ([r1] + sl2[:3] + sl2[-1:] * 3)[:5]
+            code = ''.join(self.xiaoqing.rootSet[root] for root in scheme)
+            self.xiaoqing.encoder[nameChar] = code
+
 class MyRegex(object):
     def __init__(self, file_name):
         self.file_name = file_name
         self.regex_dict = {} #敏感词正则表达式
 
     def make_regex(self):
+        mychai = MyChai()
+        mychai.run()
         with open(self.file_name, "r", encoding="utf-8") as f:
             for ban_word in f.readlines():
                 is_first = True
@@ -86,7 +122,11 @@ class MyRegex(object):
                             is_first = False
                         else:
                             pattern += "[^\\u4e00-\\u9fa5]*"
-                        pattern += "(?:{}|{}|{})".format(char, word_to_pinyin(char), word_to_pinyin_first(char))
+                        if char in mychai.xiaoqing.tree.keys():
+                            zi = mychai.xiaoqing.tree[char]
+                            pattern += "(?:{}|{}|{}|{}{})".format(char, word_to_pinyin(char), word_to_pinyin_first(char), zi.first.name[0], zi.second.name[0])
+                        else:
+                            pattern += "(?:{}|{}|{})".format(char, word_to_pinyin(char), word_to_pinyin_first(char))
                 #print(pattern)
                 self.regex_dict[ban_word.strip()] = pattern    
 
@@ -144,6 +184,7 @@ class Moyu_Banned(object):
         #用正则去匹配文本中的敏感词
         mydict = BanWordDict(self.matched_file)
         mydict.make_dict(myre.regex_dict)
+        
         #用文本中的敏感词构建ac机
         ac = AhocorasickNer(mydict.new_word)
         ac.add_keywords() 
@@ -159,13 +200,19 @@ class Moyu_Banned(object):
             f.write("Total: {}\n".format(total))
         with open(self.ans_file, "a", encoding="utf-8") as f:
             f.writelines(res)
+        #print(res)
 
 
 
 if __name__ == "__main__":
+    words_file = "test_data/words.txt"
+    matched_file = "test_data/org.txt"
+    ans_file = "test_data/pp.txt"
     t = time.time()
-    fuckse = Moyu_Banned("words.txt", "org.txt", "mo.txt")
+
+    fuckse = Moyu_Banned(words_file, matched_file, ans_file)
     fuckse.run()
+
     print(int(time.time()) - int(t))
 
 
