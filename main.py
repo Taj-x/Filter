@@ -1,4 +1,4 @@
-#-*- conding:utf-8 -*-
+# -*- conding:utf-8 -*-
 from pypinyin import lazy_pinyin
 from pypinyin import Style
 import itertools
@@ -12,11 +12,14 @@ import ahocorasick
 汉字 => {拼音，拼音首字母， 拆字}
 '''
 
+
 def word_to_pinyin(word):
     return lazy_pinyin(word)[0]
 
+
 def word_to_pinyin_first(word):
     return lazy_pinyin(word, style=Style.FIRST_LETTER)[0]
+
 
 def iszh(word):
     for c in word:
@@ -24,9 +27,10 @@ def iszh(word):
             return False
     return True
 
-#得到笛卡儿积，以list形式返回，值为字符串
-#传入敏感词
-def get_product(words): 
+
+# 得到笛卡儿积，以list形式返回，值为字符串
+# 传入敏感词
+def get_product(words):
     data_list = []
     for word in words:
         tmp = []
@@ -41,32 +45,35 @@ def get_product(words):
         res.append(list(_))
     return res
 
+
 class AhocorasickNer:
     def __init__(self, user_dict_list):
         self.user_dict_list = user_dict_list
-        self.actree = ahocorasick.Automaton() #初始化AC自动机
+        self.actree = ahocorasick.Automaton()  # 初始化AC自动机
 
     def add_keywords(self):
-        #idx:索引 key:字符
+        # idx:索引 key:字符
         for idx, key in enumerate(self.user_dict_list):
             self.actree.add_word(key, (idx, key))
-        self.actree.make_automaton() #构建fail指针
+        self.actree.make_automaton()  # 构建fail指针
 
     def get_match_result(self, sentence):
-        res = [] #保存答案
-        #end_indx:匹配结果在sentenc中的末尾索引
-        #insert_order:匹配结果在AC机中的索引
+        res = []  # 保存答案
+        # end_indx:匹配结果在sentenc中的末尾索引
+        # insert_order:匹配结果在AC机中的索引
         for end_index, (insert_order, original_value) in self.actree.iter(sentence):
             strat_index = end_index - len(original_value) + 1
-            #print((strat_index, end_index + 1), (insert_order, original_value))
-            #res.append([strat_index, end_index])
+            # print((strat_index, end_index + 1), (insert_order, original_value))
+            # res.append([strat_index, end_index])
             res.append(original_value)
         return res
 
-#拆字
+
+# 拆字
 class MyChai(object):
     def __init__(self):
         self.xiaoqing = Erbi('xiaoqing')
+
     def run(self):
         self.xiaoqing.run()
         for nameChar in self.xiaoqing.charList:
@@ -96,10 +103,11 @@ class MyChai(object):
             code = ''.join(self.xiaoqing.rootSet[root] for root in scheme)
             self.xiaoqing.encoder[nameChar] = code
 
+
 class MyRegex(object):
     def __init__(self, file_name):
         self.file_name = file_name
-        self.regex_dict = {} #敏感词正则表达式
+        self.regex_dict = {}  # 敏感词正则表达式
 
     def make_regex(self):
         mychai = MyChai()
@@ -124,31 +132,33 @@ class MyRegex(object):
                             pattern += "[^\\u4e00-\\u9fa5]*"
                         if char in mychai.xiaoqing.tree.keys():
                             zi = mychai.xiaoqing.tree[char]
-                            pattern += "(?:{}|{}|{}|{}{})".format(char, word_to_pinyin(char), word_to_pinyin_first(char), zi.first.name[0], zi.second.name[0])
+                            pattern += "(?:{}|{}|{}|{}{})".format(char, word_to_pinyin(char),
+                                                                  word_to_pinyin_first(char), zi.first.name[0],
+                                                                  zi.second.name[0])
                         else:
                             pattern += "(?:{}|{}|{})".format(char, word_to_pinyin(char), word_to_pinyin_first(char))
-                #print(pattern)
-                self.regex_dict[ban_word.strip()] = pattern    
+                # print(pattern)
+                self.regex_dict[ban_word.strip()] = pattern
+
 
 class BanWordDict(object):
     def __init__(self, file_name):
-        self.file_name = file_name #待匹配文本
-        self.new_word = [] #文本中的敏感词
-        self.new_to_original = {} #文本到黑名单的映射
-
+        self.file_name = file_name  # 待匹配文本
+        self.new_word = []  # 文本中的敏感词
+        self.new_to_original = {}  # 文本到黑名单的映射
 
     def make_dict(self, regex):
         with open(self.file_name, "r", encoding="utf-8") as f:
             for line in f.readlines():
                 for key, val in regex.items():
-                    #初次匹配
+                    # 初次匹配
                     it = re.findall(val, line, re.I)
                     for res in it:
                         self.new_to_original[res] = key
                         self.new_word.append(res)
                     if key.encode("utf-8").isalpha():
                         continue
-                    #谐音匹配
+                    # 谐音匹配
                     mp = {}
                     line = list(line)
                     for i in range(len(line)):
@@ -168,8 +178,9 @@ class BanWordDict(object):
                         self.new_to_original[res] = key
                         self.new_word.append(res)
             self.new_word = list(set(self.new_word))
-            #for it in self.new_word:
+            # for it in self.new_word:
             #    print(it)
+
 
 class Moyu_Banned(object):
     def __init__(self, blacklist_file, matched_file, ans_file):
@@ -178,16 +189,16 @@ class Moyu_Banned(object):
         self.ans_file = ans_file
 
     def run(self):
-        #对黑名单词语构建正则表达式
+        # 对黑名单词语构建正则表达式
         myre = MyRegex(self.blacklist_file)
         myre.make_regex()
-        #用正则去匹配文本中的敏感词
+        # 用正则去匹配文本中的敏感词
         mydict = BanWordDict(self.matched_file)
         mydict.make_dict(myre.regex_dict)
-        
-        #用文本中的敏感词构建ac机
+
+        # 用文本中的敏感词构建ac机
         ac = AhocorasickNer(mydict.new_word)
-        ac.add_keywords() 
+        ac.add_keywords()
         total = 0
         res = []
         with open(self.matched_file, "r", encoding="utf-8") as f:
@@ -200,8 +211,7 @@ class Moyu_Banned(object):
             f.write("Total: {}\n".format(total))
         with open(self.ans_file, "a", encoding="utf-8") as f:
             f.writelines(res)
-        #print(res)
-
+        # print(res)
 
 
 if __name__ == "__main__":
@@ -219,7 +229,3 @@ if __name__ == "__main__":
     fuckse.run()
     ed = time.time()
     print(ed - st)
-
-
-
-
