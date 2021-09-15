@@ -181,7 +181,7 @@ def Ioerr(file_name):
         f.close()
 
 class Moyu_Banned(object):
-    def __init__(self, blacklist_file, matched_file, ans_file):
+    def __init__(self, blacklist_file, matched_file, ans_file) -> object:
         self.blacklist_file = blacklist_file
         self.matched_file = matched_file
         self.ans_file = ans_file
@@ -234,6 +234,7 @@ if __name__ == "__main__":
     fuckse.run()
     ed = time.time()
     print(ed - st)
+    exit(0)
 
 
 
