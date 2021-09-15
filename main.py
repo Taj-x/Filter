@@ -124,7 +124,10 @@ class MyRegex(object):
                             pattern += "[^\\u4e00-\\u9fa5]*"
                         if char in mychai.xiaoqing.tree.keys():
                             zi = mychai.xiaoqing.tree[char]
-                            pattern += "(?:{}|{}|{}|{}{})".format(char, word_to_pinyin(char), word_to_pinyin_first(char), zi.first.name[0], zi.second.name[0])
+                            if len(zi.first.name) >= 1 and len(zi.second.name) >= 1:
+                                pattern += "(?:{}|{}|{}|{}{})".format(char, word_to_pinyin(char), word_to_pinyin_first(char), zi.first.name[0], zi.second.name[0])
+                            else:
+                                pattern += "(?:{}|{}|{})".format(char, word_to_pinyin(char), word_to_pinyin_first(char))
                         else:
                             pattern += "(?:{}|{}|{})".format(char, word_to_pinyin(char), word_to_pinyin_first(char))
                 #print(pattern)
